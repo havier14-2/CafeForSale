@@ -1,5 +1,6 @@
 package com.miapp.xanostorekotlin.model // Paquete de modelos de datos
-
+import com.google.gson.annotations.SerializedName
+import java.io.Serializable
 /**
  * Product
  * Modelo de datos que representa un producto.
@@ -30,7 +31,9 @@ data class Product( // data class: genera automáticamente métodos útiles como
 
     // ¡¡CAMBIO FUNDAMENTAL!!
     // La API no devuelve 'image_url', sino una lista llamada 'images'.
+
     // Esta propiedad ahora es una lista de objetos 'ProductImage'. Puede ser nula si no hay imágenes.
+    @SerializedName("image")
     val images: List<ProductImage>?
 ) : java.io.Serializable // <-- AÑADE ESTO
 

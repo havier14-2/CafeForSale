@@ -181,43 +181,39 @@ class AddProductFragment : Fragment() {
     }
 
     // Función suspendida que sube UNA imagen a la vez y devuelve el objeto ProductImage o null si falla.
+    // Reemplaza la función 'uploadImage' existente con esta:
+    // Reemplaza la función 'uploadImage' existente con esta versión de depuración
     private suspend fun uploadImage(uri: Uri): ProductImage? = withContext(Dispatchers.IO) {
+        Log.d("DEBUG_UPLOAD", "Iniciando subida para la URI: $uri")
         try {
-            // --- PREPARACIÓN DEL ARCHIVO ---
             val contentResolver = requireContext().contentResolver
-            // Lee todos los bytes del archivo seleccionado a partir de su URI.
             val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: throw IOException("No se pudo abrir el stream para la URI: $uri")
 
-            // Convierte los bytes en un 'RequestBody' con su tipo MIME correcto (ej. "image/jpeg").
             val requestBody = bytes.toRequestBody(contentResolver.getType(uri)?.toMediaTypeOrNull())
-            // Crea la parte 'Multipart' que se enviará. "content" es el nombre del campo que Xano espera.
             val part = MultipartBody.Part.createFormData("content", "image.jpg", requestBody)
 
-            // --- LLAMADA A LA API ---
             val uploadService = RetrofitClient.createUploadService(requireContext())
 
-            // 1. La llamada a la API devuelve una LISTA de ProductImage, no un solo objeto.
+            // --- LÓGICA FINAL Y CORRECTA ---
+            // 1. La llamada a la API devuelve una LISTA de ProductImage.
             val imageList: List<ProductImage> = uploadService.uploadImage(part)
 
             // 2. Extraemos el primer (y probablemente único) elemento de la lista.
-            // .firstOrNull() es seguro, devuelve el primer elemento o 'null' si la lista está vacía.
+            // .firstOrNull() es seguro: devuelve el primer elemento o 'null' si la lista está vacía.
             val productImage = imageList.firstOrNull()
 
-            // 3. Hacemos un log para confirmar que el objeto se extrajo correctamente.
             if (productImage != null) {
-                Log.d("AddProductFragment", "Imagen subida exitosamente: ${productImage.path}")
+                Log.d("DEBUG_UPLOAD", "¡ÉXITO! Xano devolvió una lista y extrajimos el pasaporte: $productImage")
             } else {
-                Log.w("AddProductFragment", "La subida tuvo éxito pero la lista de imágenes devuelta estaba vacía.")
+                Log.w("DEBUG_UPLOAD", "La subida tuvo éxito pero la lista de imágenes devuelta estaba vacía.")
             }
 
-            // 4. Devolvemos el objeto 'ProductImage' (o null), que es el tipo de retorno esperado de esta función.
+            // 3. Devolvemos el objeto 'ProductImage' (o null), que es lo que el resto de tu código espera.
             productImage
 
         } catch (e: Exception) {
-            // Si algo falla durante la subida de ESTA imagen, se captura aquí.
-            Log.e("AddProductFragment", "Falló la subida de la imagen: $uri", e)
-            // Devolvemos 'null' para que la corrutina principal sepa que esta subida falló.
+            Log.e("DEBUG_UPLOAD", "¡ERROR! Falló la subida de la imagen. Causa: ${e.message}", e)
             null
         }
     }

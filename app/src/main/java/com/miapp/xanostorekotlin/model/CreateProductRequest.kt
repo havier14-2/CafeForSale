@@ -1,7 +1,7 @@
 // Define el paquete donde se encuentra este archivo. Es la forma en que Android organiza el código.
 // Todos tus modelos de datos deberían estar en este paquete 'model'.
 package com.miapp.xanostorekotlin.model
-
+import com.google.gson.annotations.SerializedName
 // ¡IMPORTANTE! Importamos la clase ProductImage.
 // Esto es necesario porque la estamos usando como un tipo de dato dentro de esta clase.
 // Si esta línea no está, Android Studio te la marcará como un error de "Unresolved reference".
@@ -43,6 +43,9 @@ data class CreateProductRequest(
     // El tipo es 'List<ProductImage>?', lo que significa:
     // - List: Espera un array JSON.
     // - <ProductImage>: Cada elemento de ese array debe ser un objeto de imagen completo (con path, name, type, etc.).
+
+
     // - ?: El campo "images" en sí mismo es opcional. Si no se suben imágenes, podemos enviar 'null'.
+    @SerializedName("image")
     val images: List<ProductImage>?
 )

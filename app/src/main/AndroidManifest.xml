@@ -5,7 +5,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="@string/app_name"
+        android:label="Cafe for Sale"
         android:supportsRtl="true"
         android:theme="@style/Theme.XanoStoreKotlin">
         <activity
