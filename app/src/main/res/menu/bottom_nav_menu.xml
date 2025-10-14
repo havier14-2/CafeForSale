@@ -1,16 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Menú inferior con tres opciones: Perfil, Productos, Agregar -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+
     <item
         android:id="@+id/nav_profile"
-        android:title="Perfil"
-        android:icon="@android:drawable/ic_menu_myplaces" />
+        android:icon="@drawable/ic_menu_profile"
+        android:title="Perfil" />
+
     <item
         android:id="@+id/nav_products"
-        android:title="Productos"
-        android:icon="@android:drawable/ic_menu_sort_by_size" />
+        android:icon="@drawable/ic_menu_products"
+        android:title="Productos" />
+
     <item
         android:id="@+id/nav_add"
-        android:title="Agregar"
-        android:icon="@android:drawable/ic_input_add" />
+        android:icon="@drawable/ic_menu_add"
+        android:title="Agregar" />
+
+    <item
+        android:id="@+id/nav_manage"
+        android:icon="@drawable/ic_manage_products"
+        android:title="Gestionar" />
+
 </menu>

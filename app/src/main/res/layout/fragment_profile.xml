@@ -1,31 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fragmento de Perfil: muestra nombre y email del usuario -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:gravity="center_horizontal"
+    android:padding="24dp">
+
+    <ImageView
+        android:id="@+id/ivAvatar"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@drawable/ic_menu_profile"
+        app:tint="?attr/colorPrimary"
+        android:contentDescription="Avatar de usuario" />
 
     <TextView
         android:id="@+id/tvName"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="Nombre"/>
+        android:layout_marginTop="16dp"
+        android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+        tools:text="Nombre de Usuario" />
 
     <TextView
         android:id="@+id/tvEmail"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Email"/>
+        android:layout_marginTop="4dp"
+        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+        tools:text="usuario@email.com" />
 
-    <!-- Botón de cerrar sesión -->
+    <TextView
+        android:id="@+id/tvMemberSince"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="?android:attr/textColorSecondary"
+        tools:text="Miembro desde: 01 de Enero de 2024" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:visibility="gone"
+        tools:visibility="visible"/>
+
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnLogout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
         android:text="Cerrar sesión"
-        android:layout_marginTop="16dp"/>
+        app:icon="@drawable/ic_logout" />
 
 </LinearLayout>

@@ -1,79 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Usamos un CoordinatorLayout para futuras interacciones como un botón flotante -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".ui.ProductDetailActivity">
 
-    <!-- Usamos un ScrollView para que el contenido pueda desplazarse si es muy largo -->
-    <ScrollView
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="300dp"
+        android:fitsSystemWindows="true"
+        android:theme="@style/Theme.AppCompat.DayNight.DarkActionBar">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/toolbar_layout"
+            style="?attr/collapsingToolbarLayoutLargeStyle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:contentScrim="?attr/colorPrimary"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:toolbarId="@+id/toolbar">
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/imageViewPager"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                app:layout_collapseMode="parallax" />
+
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tab_layout_indicator"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:background="@android:color/transparent"
+                app:tabBackground="@drawable/tab_selector"
+                app:tabGravity="center"
+                app:tabIndicatorHeight="0dp"/>
+
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                app:layout_collapseMode="pin"
+                app:popupTheme="@style/Theme.AppCompat.DayNight" />
+
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 1. ViewPager2 para el carrusel de imágenes -->
-            <androidx.viewpager2.widget.ViewPager2
-                android:id="@+id/image_view_pager"
-                android:layout_width="0dp"
-                android:layout_height="300dp"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardUseCompatPadding="true">
 
-            <!-- 2. Título del producto -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Precio"
+                            android:textAppearance="?attr/textAppearanceLabelSmall" />
+                        <TextView
+                            android:id="@+id/tvProductPrice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            tools:text="$180.000"
+                            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+                            android:textColor="?attr/colorPrimary" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="?attr/dividerHorizontal" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Stock Disponible"
+                            android:textAppearance="?attr/textAppearanceLabelSmall" />
+                        <TextView
+                            android:id="@+id/tvProductStock"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            tools:text="15 unidades"
+                            android:textAppearance="?attr/textAppearanceHeadlineSmall" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <TextView
-                android:id="@+id/tv_product_name"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
-                android:textStyle="bold"
-                app:layout_constraintTop_toBottomOf="@id/image_view_pager"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                tools:text="Nombre del Producto Muy Largo" />
+                android:text="Descripción"
+                android:textAppearance="?attr/textAppearanceTitleMedium" />
 
-            <!-- 3. Precio del producto -->
             <TextView
-                android:id="@+id/tv_product_price"
-                android:layout_width="wrap_content"
+                android:id="@+id/tvProductDescription"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-                android:textColor="?attr/colorPrimary"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tv_product_name"
-                tools:text="Precio: 999.99" />
+                android:lineSpacingExtra="4dp"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                tools:text="Máquina espresso profesional con acabados de acero inoxidable. Ideal para baristas y amantes del café que buscan la extracción perfecta." />
 
-            <!-- 4. Stock del producto -->
-            <TextView
-                android:id="@+id/tv_product_stock"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="@id/tv_product_price"
-                app:layout_constraintBottom_toBottomOf="@id/tv_product_price"
-                app:layout_constraintEnd_toEndOf="parent"
-                tools:text="Stock: 25"/>
-
-            <!-- 5. Descripción del producto -->
-            <TextView
-                android:id="@+id/tv_product_description"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                app:layout_constraintTop_toBottomOf="@id/tv_product_price"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                tools:text="Esta es una descripción muy detallada del producto que puede ocupar varias líneas de texto para explicar todas sus características y beneficios." />
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </ScrollView>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

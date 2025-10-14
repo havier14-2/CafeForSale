@@ -3,4 +3,6 @@
     <string name="app_name">Xano Store Kotlin</string>
     <string name="product_image">Product Image</string>
     <string name="vista_previa_de_imagen_seleccionada">Vista previa de imagen seleccionada</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

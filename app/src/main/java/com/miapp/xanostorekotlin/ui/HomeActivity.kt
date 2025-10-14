@@ -1,52 +1,51 @@
-package com.miapp.xanostorekotlin.ui // Paquete de la Activity principal de la app
+package com.miapp.xanostorekotlin.ui
 
-import android.os.Bundle // Import para ciclo de vida de Activity y estado
-import androidx.appcompat.app.AppCompatActivity // Import de la Activity base con compatibilidad
-import androidx.fragment.app.Fragment // Import de la clase Fragment (para transacciones)
-import com.miapp.xanostorekotlin.api.TokenManager // Import de nuestra clase para gestionar token/usuario
-import com.miapp.xanostorekotlin.databinding.ActivityHomeBinding // Import del ViewBinding del layout activity_home.xml
-import com.miapp.xanostorekotlin.ui.fragments.AddProductFragment // Import del fragmento para agregar productos
-import com.miapp.xanostorekotlin.ui.fragments.ProductsFragment // Import del fragmento que lista productos
-import com.miapp.xanostorekotlin.ui.fragments.ProfileFragment // Import del fragmento de perfil
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import com.miapp.xanostorekotlin.R
+import com.miapp.xanostorekotlin.api.TokenManager
+import com.miapp.xanostorekotlin.databinding.ActivityHomeBinding
+import com.miapp.xanostorekotlin.ui.fragments.AddProductFragment
+import com.miapp.xanostorekotlin.ui.fragments.ManageProductsFragment // ¡NUEVO! Import
+import com.miapp.xanostorekotlin.ui.fragments.ProductsFragment
+import com.miapp.xanostorekotlin.ui.fragments.ProfileFragment
 
-/**
- * HomeActivity
- *
- * Explicación:
- * - Muestra un saludo con el nombre del usuario logeado.
- * - Contiene un BottomNavigationView para navegar entre 3 fragments:
- *   Perfil, Productos y Agregar Producto.
- * - No usamos Navigation Component para mantenerlo sencillo; hacemos transacciones manuales.
- */
-class HomeActivity : AppCompatActivity() { // Declaramos la Activity Home, que gestiona los fragments
+class HomeActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityHomeBinding // Referencia al ViewBinding para acceder a vistas
-    private lateinit var tokenManager: TokenManager // Manejador de token y datos de usuario
+    private lateinit var binding: ActivityHomeBinding
+    private lateinit var tokenManager: TokenManager
 
-    override fun onCreate(savedInstanceState: Bundle?) { // Métodoo de ciclo de vida: se llama al crear la Activity
-        super.onCreate(savedInstanceState) // Llamamos a la implementación base
-        binding = ActivityHomeBinding.inflate(layoutInflater) // Inflamos el layout a través de ViewBinding
-        setContentView(binding.root) // Establecemos la vista raíz del binding como contenido de la Activity
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityHomeBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        tokenManager = TokenManager(this) // Inicializamos el TokenManager con el contexto de la Activity
-        binding.tvWelcome.text = "Bienvenido ${tokenManager.getUserName()}" // Mostramos saludo con el nombre del usuario
+        tokenManager = TokenManager(this)
+        binding.tvWelcome.text = "Bienvenido ${tokenManager.getUserName()}"
 
-        // Cargamos inicialmente el fragmento de Productos
-        replaceFragment(ProductsFragment()) // Reemplazamos el contenedor por el fragmento de productos
+        // Carga inicial del fragmento de Productos
+        if (savedInstanceState == null) {
+            replaceFragment(ProductsFragment())
+            binding.bottomNav.selectedItemId = R.id.nav_products // Marcar como seleccionado
+        }
 
-        binding.bottomNav.setOnItemSelectedListener { item -> // Listener para navegación inferior
-            when (item.itemId) { // Decidimos qué fragment mostrar según el ítem
-                com.miapp.xanostorekotlin.R.id.nav_profile -> replaceFragment(ProfileFragment()) // Ir al perfil
-                com.miapp.xanostorekotlin.R.id.nav_products -> replaceFragment(ProductsFragment()) // Ir a productos
-                com.miapp.xanostorekotlin.R.id.nav_add -> replaceFragment(AddProductFragment()) // Ir a agregar producto
+
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_profile -> replaceFragment(ProfileFragment())
+                R.id.nav_products -> replaceFragment(ProductsFragment())
+                R.id.nav_add -> replaceFragment(AddProductFragment())
+                // --- ¡NUEVO! Caso para el fragment de gestionar ---
+                R.id.nav_manage -> replaceFragment(ManageProductsFragment())
             }
-            true // Devolvemos true para indicar que el evento fue manejado
+            true
         }
     }
 
-    private fun replaceFragment(fragment: Fragment) { // Función auxiliar para reemplazar el fragment actual
-        supportFragmentManager.beginTransaction() // Iniciamos una transacción de fragmentos
-            .replace(binding.fragmentContainer.id, fragment) // Reemplazamos el contenedor con el fragmento dado
-            .commit() // Confirmamos la transacción
+    private fun replaceFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(binding.fragmentContainer.id, fragment)
+            .commit()
     }
 }

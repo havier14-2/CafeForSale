@@ -1,52 +1,97 @@
-package com.miapp.xanostorekotlin.ui.fragments // Declaramos el paquete donde vive este fragmento
+package com.miapp.xanostorekotlin.ui.fragments
 
-import android.content.Intent // Import para crear Intents al navegar entre Activities
-import android.os.Bundle // Import para manejar el ciclo de vida y estado guardado
-import android.view.LayoutInflater // Import para inflar layouts XML
-import android.view.View // Import de la clase View
-import android.view.ViewGroup // Import para referencia al contenedor padre
-import androidx.fragment.app.Fragment // Import de la clase base Fragment
-import com.miapp.xanostorekotlin.api.TokenManager // Import de nuestro gestor de tokens/usuario
-import com.miapp.xanostorekotlin.databinding.FragmentProfileBinding // Import del ViewBinding generado para fragment_profile.xml
-import com.miapp.xanostorekotlin.ui.MainActivity // Import de MainActivity para navegar al login tras logout
+import android.content.Intent
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import com.miapp.xanostorekotlin.api.RetrofitClient
+import com.miapp.xanostorekotlin.api.TokenManager
+import com.miapp.xanostorekotlin.databinding.FragmentProfileBinding
+import com.miapp.xanostorekotlin.model.User
+import com.miapp.xanostorekotlin.ui.MainActivity
+import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-/**
- * ProfileFragment
- * Muestra los datos básicos del usuario logeado y permite cerrar sesión.
- * Todas las líneas tienen comentarios para fines didácticos.
- */
-class ProfileFragment : Fragment() { // Declaramos la clase del fragmento que hereda de Fragment
+class ProfileFragment : Fragment() {
 
-    private var _binding: FragmentProfileBinding? = null // Referencia mutable al binding (válida entre onCreateView y onDestroyView)
-    private val binding get() = _binding!! // Acceso no nulo al binding mientras la vista existe
+    private var _binding: FragmentProfileBinding? = null
+    private val binding get() = _binding!!
+    private lateinit var tokenManager: TokenManager
 
-    override fun onCreateView( // Métodoo para crear/infla la vista del fragmento
-        inflater: LayoutInflater, // Inflador para convertir XML en objetos View
-        container: ViewGroup?, // Contenedor padre donde se insertará la vista
-        savedInstanceState: Bundle? // Estado previamente guardado (no usado aquí)
-    ): View { // Retornamos un View
-        _binding = FragmentProfileBinding.inflate(inflater, container, false) // Inflamos el layout usando ViewBinding
-        return binding.root // Retornamos la raíz del layout inflado
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        _binding = FragmentProfileBinding.inflate(inflater, container, false)
+        tokenManager = TokenManager(requireContext())
+        return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) { // Métodoo llamado cuando la vista ya fue creada
-        super.onViewCreated(view, savedInstanceState) // Llamamos a la superclase
-        val tm = TokenManager(requireContext()) // Instanciamos el TokenManager para leer datos del usuario
-        binding.tvName.text = tm.getUserName() // Asignamos el nombre del usuario al TextView correspondiente
-        binding.tvEmail.text = tm.getUserEmail() // Asignamos el email del usuario al TextView correspondiente
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setupLogoutButton()
+        loadUserProfile()
+    }
 
-        binding.btnLogout.setOnClickListener { // Asociamos un listener al botón de Cerrar sesión
-            tm.clear() // Limpiamos token y datos del usuario de SharedPreferences
-            // Creamos un Intent para ir a MainActivity (pantalla de login)
-            val intent = Intent(requireContext(), MainActivity::class.java) // Intent explícito hacia MainActivity
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK) // Limpiamos el back stack para que no se pueda volver con atrás
-            startActivity(intent) // Lanzamos la actividad de login
-            requireActivity().finish() // Cerramos la HomeActivity actual para completar el logout
+    private fun loadUserProfile() {
+        binding.progressBar.visibility = View.VISIBLE
+        binding.tvName.text = "Cargando..."
+        binding.tvEmail.text = ""
+        binding.tvMemberSince.text = ""
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val authService = RetrofitClient.createAuthService(requireContext(), requiresAuth = true)
+                val user = authService.getMe()
+                updateUI(user)
+            } catch (e: Exception) {
+                // --- ¡LÓGICA MEJORADA AQUÍ! ---
+                if (e is HttpException && e.code() == 401) {
+                    // Si el error es 401, el token es inválido. Cerramos sesión.
+                    Toast.makeText(context, "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", Toast.LENGTH_LONG).show()
+                    logout()
+                } else {
+                    // Para otros errores (sin internet, etc.), mostramos datos locales.
+                    Toast.makeText(context, "Error de red. Mostrando datos locales.", Toast.LENGTH_SHORT).show()
+                    binding.tvName.text = tokenManager.getUserName() ?: "No disponible"
+                    binding.tvEmail.text = tokenManager.getUserEmail() ?: "No disponible"
+                }
+            } finally {
+                if (isAdded) { // Asegurarnos que el fragmento aún está "vivo"
+                    binding.progressBar.visibility = View.GONE
+                }
+            }
         }
     }
 
-    override fun onDestroyView() { // Métodoo llamado cuando la vista del fragmento se está destruyendo
-        super.onDestroyView() // Llamamos a la superclase
-        _binding = null // Liberamos el binding para evitar fugas de memoria
+    private fun updateUI(user: User) {
+        binding.tvName.text = user.name
+        binding.tvEmail.text = user.email
+        val sdf = SimpleDateFormat("dd 'de' MMMM 'de' yyyy", Locale("es", "ES"))
+        val memberSinceDate = Date(user.createdAt)
+        binding.tvMemberSince.text = "Miembro desde: ${sdf.format(memberSinceDate)}"
+    }
+
+    private fun setupLogoutButton() {
+        binding.btnLogout.setOnClickListener {
+            logout()
+        }
+    }
+
+    private fun logout() {
+        tokenManager.clear()
+        val intent = Intent(requireContext(), MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        activity?.finish()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

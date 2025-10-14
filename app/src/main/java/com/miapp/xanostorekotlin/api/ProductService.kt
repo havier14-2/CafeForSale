@@ -1,22 +1,24 @@
-package com.miapp.xanostorekotlin.api // Paquete del servicio de productos
+package com.miapp.xanostorekotlin.api
 
-import com.miapp.xanostorekotlin.model.CreateProductRequest // Import del modelo de request para crear producto
-import com.miapp.xanostorekotlin.model.CreateProductResponse // Import del modelo de respuesta de creación
-import com.miapp.xanostorekotlin.model.Product // Import del modelo de producto
-import retrofit2.http.Body // Import de anotación para el cuerpo de la solicitud
-import retrofit2.http.GET // Import de anotación para métodoo HTTP GET
-import retrofit2.http.POST // Import de anotación para métodoo HTTP POST
+import com.miapp.xanostorekotlin.model.CreateProductRequest
+import com.miapp.xanostorekotlin.model.Product // Se elimina el import de CreateProductResponse
+import retrofit2.Response
+import retrofit2.http.*
 
-/**
- * ProductService
- * Endpoints de productos: listar y crear.
- * Base URL usada: ApiConfig.storeBaseUrl
- * Todas las líneas comentadas para explicar cada elemento.
- */
-interface ProductService { // Declaramos interfaz de Retrofit para productos
-    @GET("product") // Definimos endpoint GET /products
-    suspend fun getProducts(): List<Product> // Métodoo suspend que devuelve lista de productos
+interface ProductService {
+    @GET("product")
+    suspend fun getProducts(): List<Product>
 
-    @POST("product") // Definimos endpoint POST /products
-    suspend fun createProduct(@Body request: CreateProductRequest): CreateProductResponse // Métodoo suspend para crear producto, con cuerpo JSON
+    // --- ¡CAMBIO AQUÍ! La función ahora devuelve un 'Product' directamente ---
+    @POST("product")
+    suspend fun createProduct(@Body request: CreateProductRequest): Product
+
+    @PATCH("product/{product_id}")
+    suspend fun updateProduct(
+        @Path("product_id") productId: Int,
+        @Body request: CreateProductRequest
+    ): Product
+
+    @DELETE("product/{product_id}")
+    suspend fun deleteProduct(@Path("product_id") productId: Int): Response<Unit>
 }
