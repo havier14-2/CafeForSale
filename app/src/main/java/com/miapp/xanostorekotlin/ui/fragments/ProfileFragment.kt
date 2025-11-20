@@ -1,23 +1,32 @@
-// Archivo: com/miapp/xanostorekotlin/ui/fragments/ProfileFragment.kt
 package com.miapp.xanostorekotlin.ui.fragments
-import android.util.Log
+
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import coil.load
+import coil.transform.CircleCropTransformation
+import com.miapp.xanostorekotlin.R
 import com.miapp.xanostorekotlin.api.RetrofitClient
-// ¡CAMBIO! Importamos el nuevo SessionManager
-import com.miapp.xanostorekotlin.helpers.SessionManager
 import com.miapp.xanostorekotlin.databinding.FragmentProfileBinding
+import com.miapp.xanostorekotlin.helpers.SessionManager
 import com.miapp.xanostorekotlin.model.User
-// ¡CAMBIO! Importamos SplashActivity para el logout
+import com.miapp.xanostorekotlin.model.UserUpdateRequest
 import com.miapp.xanostorekotlin.ui.SplashActivity
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,95 +35,166 @@ class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
-    // NOTA: Ya no necesitamos 'tokenManager' aquí
+    private var currentUser: User? = null
+
+    // Selector de imagen
+    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { uploadAndSetAvatar(it) }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentProfileBinding.inflate(inflater, container, false)
-        // Ya no inicializamos tokenManager
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupLogoutButton()
+
+        // Botones de Foto
+        binding.fabCamera.setOnClickListener { pickImage.launch("image/*") }
+        binding.ivAvatar.setOnClickListener { pickImage.launch("image/*") }
+
+        // Botón Editar Datos
+        binding.btnEditProfile.setOnClickListener {
+            currentUser?.let { user -> showEditDialog(user) }
+        }
+
+        binding.btnLogout.setOnClickListener { logout() }
+
         loadUserProfile()
     }
 
     private fun loadUserProfile() {
         binding.progressBar.visibility = View.VISIBLE
-        binding.tvName.text = "Cargando..."
-        binding.tvEmail.text = ""
-        binding.tvMemberSince.text = ""
-
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val token = SessionManager.getToken(requireContext())
-                if (token == null) {
-                    Toast.makeText(context, "Sesión no encontrada.", Toast.LENGTH_SHORT).show()
-                    logout()
-                    return@launch
-                }
-
-                // 2. Creamos el servicio (esto está bien)
-                val authService = RetrofitClient.createAuthService(requireContext())
-                // 3. ¡CAMBIADO! Pasamos el token a la función getMe()
-                val user = authService.getMe("Bearer $token")
-                updateUI(user)
+                val token = SessionManager.getToken(requireContext()) ?: return@launch
+                val service = RetrofitClient.createAuthService(requireContext())
+                currentUser = service.getMe("Bearer $token")
+                currentUser?.let { updateUI(it) }
             } catch (e: Exception) {
-                if (!isAdded) return@launch // Seguridad: si el fragmento se destruye
-
-                if (e is HttpException && e.code() == 401) {
-                    Toast.makeText(context, "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", Toast.LENGTH_LONG).show()
-                    logout() // El token es inválido, llamamos a nuestro nuevo logout
-                } else {
-                    // Para otros errores, mostramos datos locales (solo el nombre)
-                    Toast.makeText(context, "Error de red. Mostrando datos locales.", Toast.LENGTH_SHORT).show()
-                    // ¡CAMBIO! Usamos SessionManager
-                    binding.tvName.text = SessionManager.getUserName(requireContext()) ?: "No disponible"
-                    binding.tvEmail.text = "Email no disponible offline"
-                }
+                if (isAdded) Toast.makeText(context, "Error cargando perfil", Toast.LENGTH_SHORT).show()
             } finally {
-                if (isAdded) {
-                    binding.progressBar.visibility = View.GONE
-                }
+                if (isAdded) binding.progressBar.visibility = View.GONE
             }
         }
     }
 
     private fun updateUI(user: User) {
-        binding.tvName.text = user.name
+        binding.tvName.text = "${user.name} ${user.lastname ?: ""}"
         binding.tvEmail.text = user.email
+        binding.chipRole.text = user.role.uppercase()
 
-        // Asignamos también el rol y estado (¡nuevo!)
-        val roleText = "Rol: ${user.role.replaceFirstChar { it.uppercase() }}"
-        val statusText = "Estado: ${user.status.replaceFirstChar { it.uppercase() }}"
+        try {
+            val sdf = SimpleDateFormat("yyyy", Locale.getDefault())
+            val year = sdf.format(Date(user.createdAt))
+            binding.tvMemberSince.text = "Miembro desde $year"
+        } catch (e: Exception) {
+            binding.tvMemberSince.text = "Miembro activo"
+        }
 
-        // Podríamos usar otros TextViews si los añades al layout
-        // Por ahora, lo concatenamos a la fecha de miembro
-
-        val sdf = SimpleDateFormat("dd 'de' MMMM 'de' yyyy", Locale("es", "ES"))
-        val memberSinceDate = Date(user.createdAt)
-        binding.tvMemberSince.text = "Miembro desde: ${sdf.format(memberSinceDate)}\n$roleText ($statusText)"
-    }
-
-    private fun setupLogoutButton() {
-        binding.btnLogout.setOnClickListener {
-            logout()
+        // --- CORRECCIÓN: Usamos 'profileImage' y quitamos el cast a ShapeableImageView ---
+        if (user.profileImage != null && !user.profileImage.url.isNullOrBlank()) {
+            binding.ivAvatar.load(user.profileImage.url) {
+                crossfade(true)
+                transformations(CircleCropTransformation())
+                placeholder(R.drawable.ic_menu_profile)
+                error(R.drawable.ic_menu_profile)
+            }
+        } else {
+            binding.ivAvatar.setImageResource(R.drawable.ic_menu_profile)
         }
     }
 
-    // --- ¡¡ESTA ES LA CORRECCIÓN MÁS IMPORTANTE!! ---
+    private fun uploadAndSetAvatar(uri: Uri) {
+        binding.progressBar.visibility = View.VISIBLE
+        Toast.makeText(context, "Subiendo...", Toast.LENGTH_SHORT).show()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val context = requireContext()
+                val contentResolver = context.contentResolver
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: throw Exception("Error leyendo archivo")
+
+                val requestBody = bytes.toRequestBody(contentResolver.getType(uri)?.toMediaTypeOrNull())
+                val part = MultipartBody.Part.createFormData("content", "avatar.jpg", requestBody)
+
+                val uploadService = RetrofitClient.createUploadService(context)
+                val uploadedImages = uploadService.uploadImage(part)
+                val newImage = uploadedImages.firstOrNull()
+
+                if (newImage != null && currentUser != null) {
+                    val authService = RetrofitClient.createAuthenticatedAuthService(context)
+
+                    // Actualizamos SOLO la imagen (lo demás null)
+                    val updateReq = UserUpdateRequest(null, null, null, null, null, newImage)
+
+                    authService.updateUser(currentUser!!.id, updateReq)
+                    Toast.makeText(context, "Foto actualizada", Toast.LENGTH_SHORT).show()
+                    loadUserProfile()
+                }
+            } catch (e: Exception) {
+                if(isAdded) Toast.makeText(requireContext(), "Error al subir", Toast.LENGTH_SHORT).show()
+            } finally {
+                if(isAdded) binding.progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun showEditDialog(user: User) {
+        val context = requireContext()
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)
+        }
+        val etName = EditText(context).apply { hint = "Nombre"; setText(user.name) }
+        val etLast = EditText(context).apply { hint = "Apellido"; setText(user.lastname) }
+        val etAddr = EditText(context).apply { hint = "Dirección"; setText(user.shippingAddress) }
+        val etPhone = EditText(context).apply { hint = "Teléfono"; setText(user.phone) }
+
+        layout.addView(etName)
+        layout.addView(etLast)
+        layout.addView(etAddr)
+        layout.addView(etPhone)
+
+        AlertDialog.Builder(context)
+            .setTitle("Editar Datos")
+            .setView(layout)
+            .setPositiveButton("Guardar") { _, _ ->
+                saveProfileChanges(
+                    user.id,
+                    etName.text.toString(),
+                    etLast.text.toString(),
+                    etAddr.text.toString(),
+                    etPhone.text.toString()
+                )
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun saveProfileChanges(id: Int, name: String, last: String, addr: String, phone: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val authService = RetrofitClient.createAuthenticatedAuthService(requireContext())
+                // Mantenemos la imagen actual
+                val req = UserUpdateRequest(name, last, phone, addr, null, currentUser?.profileImage)
+                authService.updateUser(id, req)
+                Toast.makeText(context, "Datos guardados", Toast.LENGTH_SHORT).show()
+                loadUserProfile()
+            } catch (e: Exception) {
+                if(isAdded) Toast.makeText(context, "Error al guardar", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun logout() {
-        if (!isAdded) return // Seguridad
-
-        // ¡CAMBIO! Usamos SessionManager para limpiar
         SessionManager.clearSession(requireContext())
-
-        // ¡CAMBIO! Redirigimos a SplashActivity, no a Login/Main
         val intent = Intent(requireContext(), SplashActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
-        activity?.finishAffinity() // Cierra esta activity y todas las anteriores
+        activity?.finishAffinity()
     }
 
     override fun onDestroyView() {

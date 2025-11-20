@@ -3,12 +3,13 @@ package com.miapp.xanostorekotlin.ui.adapter
 
 import android.content.Context
 import android.graphics.Color
+import android.util.Log // Import para Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.miapp.xanostorekotlin.R // <-- ¡¡IMPORT FALTANTE!!
+import com.miapp.xanostorekotlin.R
 import com.miapp.xanostorekotlin.databinding.ItemAdminOrderBinding
 import com.miapp.xanostorekotlin.model.Order
 import java.text.NumberFormat
@@ -35,35 +36,43 @@ class AdminOrdersAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val order = orders[position]
 
+        // --- DEBUG LOG ---
+        Log.d("AdminAdapter", "Orden #${order.id} - Items: ${order.items?.size} - Raw: ${order.items}")
+
         with(holder.binding) {
             tvOrderId.text = "Orden #${order.id}"
             tvOrderTotal.text = format.format(order.total ?: 0.0)
 
-            // Info del usuario
-            val userName = order.user?.name ?: "Usuario Desconocido"
-            val userEmail = order.user?.email ?: "N/A"
-            tvOrderUser.text = "Cliente: $userName ($userEmail)"
+            val userName = order.user?.name ?: "Usuario ID ${order.user_id}"
+            tvOrderUser.text = "Cliente: $userName"
 
-            // Info de items
-            val totalItems = order.items?.sumOf { it.quantity } ?: 0
-            tvOrderItems.text = "Total Items: $totalItems"
+            // --- Lógica de Productos ---
+            if (order.items != null && order.items.isNotEmpty()) {
+                val itemsText = order.items.joinToString(separator = "\n") { item ->
+                    val qty = item.quantity
+                    val name = item.product?.name ?: "Producto Desconocido (ID ${item.product_id})"
+                    "• $qty x $name"
+                }
+                tvOrderItems.text = itemsText
+                tvOrderItems.setTextColor(Color.BLACK) // Asegurar que se vea
+            } else {
+                tvOrderItems.text = "⚠️ Sin detalles de productos"
+                tvOrderItems.setTextColor(Color.RED)
+            }
 
-            // Lógica de Estado y Botones
+            // Estado
             tvOrderStatus.text = "Estado: ${order.status}"
             when (order.status) {
                 "pending" -> {
-                    tvOrderStatus.setTextColor(Color.parseColor("#FFA500")) // Naranja
+                    tvOrderStatus.setTextColor(Color.parseColor("#FFA500"))
                     buttonContainer.visibility = View.VISIBLE
                 }
                 "accepted" -> {
-                    // --- ¡¡ARREGLO!! Usamos el color de tu app ---
-                    tvOrderStatus.setTextColor(ContextCompat.getColor(context, R.color.acento_caramelo)) // O usa R.color.colorPrimary
+                    tvOrderStatus.setTextColor(ContextCompat.getColor(context, R.color.acento_caramelo))
                     buttonContainer.visibility = View.GONE
                 }
                 "rejected" -> {
-                    // --- ¡¡ARREGLO!! Usamos el color de tu app ---
-                    // Asumo que tienes un 'colorError' en 'colors.xml', si no, usa rojo.
-                    tvOrderStatus.setTextColor(Color.RED) // O usa R.color.colorError
+                    tvOrderStatus.setTextColor(Color.RED)
                     buttonContainer.visibility = View.GONE
                 }
                 else -> {

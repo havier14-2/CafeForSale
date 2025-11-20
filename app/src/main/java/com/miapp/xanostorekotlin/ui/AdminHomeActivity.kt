@@ -22,7 +22,6 @@ class AdminHomeActivity : AppCompatActivity() {
         binding = ActivityAdminHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.tvWelcome.text = "Admin: ${SessionManager.getUserName(this)}"
 
         // --- ¡¡CAMBIO DE MENÚ!! ---
         // Apuntamos al nuevo menú de admin

@@ -1,20 +1,19 @@
-// Archivo: com/miapp/xanostorekotlin/ui/adapter/AdminUsersAdapter.kt
 package com.miapp.xanostorekotlin.ui.adapter
 
 import android.content.Context
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.miapp.xanostorekotlin.R
 import com.miapp.xanostorekotlin.databinding.ItemAdminUserBinding
 import com.miapp.xanostorekotlin.model.User
 
 class AdminUsersAdapter(
     private var users: MutableList<User>,
-    private val currentUserId: Int, // ID del admin que está logueado
-    private val onToggleClick: (User) -> Unit
+    private val currentUserId: Int,
+    private val onToggleClick: (User) -> Unit,
+    private val onEditClick: (User) -> Unit,
+    private val onDeleteClick: (User) -> Unit // Nuevo callback
 ) : RecyclerView.Adapter<AdminUsersAdapter.ViewHolder>() {
 
     private lateinit var context: Context
@@ -35,26 +34,32 @@ class AdminUsersAdapter(
             tvUserEmail.text = user.email
             tvUserRole.text = "Rol: ${user.role}"
 
-            // Lógica de estado (Colores y Texto)
+            // Estado visual
             if (user.status == "active") {
-                tvUserStatus.text = "Activo"
+                tvUserStatus.text = "ACTIVO"
                 tvUserStatus.setBackgroundColor(Color.parseColor("#4CAF50")) // Verde
-                btnToggleStatus.text = "Bloquear"
-                btnToggleStatus.icon = ContextCompat.getDrawable(context, R.drawable.ic_delete) // Re-usamos el ícono
+                btnToggleStatus.text = "Bloq"
             } else {
-                tvUserStatus.text = "Bloqueado"
+                tvUserStatus.text = "BLOQ"
                 tvUserStatus.setBackgroundColor(Color.parseColor("#F44336")) // Rojo
-                btnToggleStatus.text = "Desbloquear"
-                btnToggleStatus.icon = ContextCompat.getDrawable(context, R.drawable.ic_add) // Re-usamos el ícono
+                btnToggleStatus.text = "Desbloq"
             }
 
-            // Un admin no puede bloquearse a sí mismo
+            // Lógica de botones
             if (user.id == currentUserId) {
+                // No puedes editarte ni borrarte a ti mismo desde esta lista
                 btnToggleStatus.isEnabled = false
-                btnToggleStatus.text = "Este eres tú"
+                btnDelete.isEnabled = false
+                btnEdit.isEnabled = false
+                tvUserName.append(" (Tú)")
             } else {
                 btnToggleStatus.isEnabled = true
+                btnDelete.isEnabled = true
+                btnEdit.isEnabled = true
+
                 btnToggleStatus.setOnClickListener { onToggleClick(user) }
+                btnEdit.setOnClickListener { onEditClick(user) }
+                btnDelete.setOnClickListener { onDeleteClick(user) }
             }
         }
     }

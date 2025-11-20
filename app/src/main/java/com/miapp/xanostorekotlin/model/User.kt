@@ -36,5 +36,8 @@ data class User(
     // --- Fin de campos nuevos ---
 
     @SerializedName("created_at")
-    val createdAt: Long
+    val createdAt: Long,
+
+    @SerializedName("profile_image")
+val profileImage: ProductImage?
 ) : Serializable // Implementamos Serializable

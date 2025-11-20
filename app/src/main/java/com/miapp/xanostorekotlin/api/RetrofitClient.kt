@@ -1,103 +1,84 @@
-package com.miapp.xanostorekotlin.api // Paquete donde vive el cliente Retrofit
+package com.miapp.xanostorekotlin.api
 
-import android.content.Context // Import para usar Context al construir interceptores dependientes de token
-import com.miapp.xanostorekotlin.api.ApiConfig.authBaseUrl // Import del baseUrl de autenticación (definido en BuildConfig/ApiConfig)
-import com.miapp.xanostorekotlin.api.ApiConfig.storeBaseUrl // Import del baseUrl de tienda/productos
-import okhttp3.OkHttpClient // Cliente HTTP subyacente usado por Retrofit
-import okhttp3.logging.HttpLoggingInterceptor // Interceptor de logging para depuración
-import retrofit2.Retrofit // Clase principal para construir el cliente Retrofit
-import retrofit2.converter.gson.GsonConverterFactory // Convertidor JSON (Gson) para serialización/deserialización
-import java.util.concurrent.TimeUnit // Utilidad para definir timeouts
+import android.content.Context
+import com.miapp.xanostorekotlin.api.ApiConfig.authBaseUrl
+import com.miapp.xanostorekotlin.api.ApiConfig.storeBaseUrl
+import com.miapp.xanostorekotlin.helpers.SessionManager // <--- ¡IMPORTANTE! Usamos SessionManager
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
-/**
- * RetrofitClient
- * Centraliza la creación de instancias de Retrofit y OkHttp.
- *
- * Se ha modificado para soportar el flujo de autenticación en dos pasos:
- * 1. Un servicio de autenticación PÚBLICO (para el login).
- * 2. Un servicio de autenticación PRIVADO (para /auth/me y otras llamadas que requieran token).
- */
-object RetrofitClient { // Objeto singleton que expone métodos de fábrica
+object RetrofitClient {
 
-    // Builder base de OkHttp configurado con logging y timeouts. No necesita cambios.
+    // Builder base de OkHttp
     private fun baseOkHttpBuilder(): OkHttpClient.Builder {
-        val logging = HttpLoggingInterceptor().apply { // Creamos el interceptor de logging
-            // Nivel BODY útil en desarrollo para ver requests y responses completas.
-            level = HttpLoggingInterceptor.Level.BODY // Establecemos el nivel de detalle
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
         }
-        return OkHttpClient.Builder() // Iniciamos el builder de OkHttp
-            .addInterceptor(logging) // Añadimos el interceptor de logging
-            .connectTimeout(30, TimeUnit.SECONDS) // Timeout de conexión
-            .readTimeout(30, TimeUnit.SECONDS) // Timeout de lectura
-            .writeTimeout(30, TimeUnit.SECONDS) // Timeout de escritura
+        return OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
     }
 
-    // Función que construye Retrofit con baseUrl y cliente. No necesita cambios.
+    // Función constructora de Retrofit
     private fun retrofit(baseUrl: String, client: OkHttpClient): Retrofit =
-        Retrofit.Builder() // Iniciamos builder de Retrofit
-            .baseUrl(baseUrl) // Establecemos base URL
-            .client(client) // Asociamos cliente OkHttp
-            .addConverterFactory(GsonConverterFactory.create()) // Añadimos convertidor Gson
-            .build() // Construimos instancia Retrofit
-    fun createAuthService(context: Context): AuthService {
-        return retrofit(authBaseUrl, baseOkHttpBuilder().build())
-            .create(AuthService::class.java)
-    }
-
-    // 2. ¡NUEVA FÁBRICA PRIVADA (CON TOKEN)! - Para auth/me, user, etc.
-    fun createAuthenticatedAuthService(context: Context): AuthService {
-        val tokenManager = TokenManager(context)
-        val client = baseOkHttpBuilder()
-            .addInterceptor(AuthInterceptor { tokenManager.getToken() })
+        Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
-        return retrofit(authBaseUrl, client).create(AuthService::class.java)
-    }
+
     /**
-     * ¡FUNCIÓN MODIFICADA Y UNIFICADA!
-     * Fábrica para AuthService. Ahora acepta un parámetro 'requiresAuth'.
-     *
-     * @param context El contexto de la aplicación.
-     * @param requiresAuth Si es 'true', se creará un cliente con el interceptor de token.
-     *                     Si es 'false' (por defecto), se creará un cliente público sin token.
-     * @return Una instancia de AuthService.
+     * Crea el servicio de Auth.
+     * requiresAuth = false -> Para Login (Público)
+     * requiresAuth = true -> Para /auth/me o endpoints protegidos (Privado)
      */
     fun createAuthService(context: Context, requiresAuth: Boolean = false): AuthService {
-        val clientBuilder = baseOkHttpBuilder() // Partimos del builder base
+        val clientBuilder = baseOkHttpBuilder()
 
         if (requiresAuth) {
-            // Si se requiere autenticación, obtenemos el token y añadimos el interceptor
-            val tokenManager = TokenManager(context)
-            clientBuilder.addInterceptor(AuthInterceptor { tokenManager.getToken() })
+            clientBuilder.addInterceptor(AuthInterceptor {
+                // ¡CORRECCIÓN! Usamos SessionManager
+                SessionManager.getToken(context)
+            })
         }
 
-        // Construimos el cliente OkHttp y luego la instancia de Retrofit
-        val client = clientBuilder.build()
-        return retrofit(authBaseUrl, client).create(AuthService::class.java)
+        return retrofit(authBaseUrl, clientBuilder.build()).create(AuthService::class.java)
     }
 
-    // Fábrica para ProductService (con Authorization). No necesita cambios.
-    fun createProductService(context: Context): ProductService {
-        val tokenManager = TokenManager(context) // Acceso al TokenManager para obtener el token
-        val client = baseOkHttpBuilder() // Partimos del builder base
-            .addInterceptor(AuthInterceptor { tokenManager.getToken() }) // Añadimos nuestro interceptor que inserta Bearer token
-            .build() // Construimos cliente OkHttp
-        return retrofit(storeBaseUrl, client).create(ProductService::class.java) // Construimos Retrofit con base de tienda y generamos servicio
+    // Mantenemos este por compatibilidad si lo usas en AdminUsersFragment
+    fun createAuthenticatedAuthService(context: Context): AuthService {
+        return createAuthService(context, requiresAuth = true)
     }
 
-    // Fábrica para UploadService (usa Authorization). No necesita cambios.
-    fun createUploadService(context: Context): UploadService {
-        val tokenManager = TokenManager(context) // Obtenemos el token desde TokenManager
-        val client = baseOkHttpBuilder() // Builder base
-            .addInterceptor(AuthInterceptor { tokenManager.getToken() }) // Interceptor de Authorization
-            .build() // Construimos cliente
-        return retrofit(storeBaseUrl, client).create(UploadService::class.java) // Reutilizamos storeBaseUrl para subida de archivos
-    }
-    fun createOrderService(context: Context): OrderService {
-        val tokenManager = TokenManager(context)
-        val client = baseOkHttpBuilder()
-            .addInterceptor(AuthInterceptor { tokenManager.getToken() })
+    // --- SERVICIOS DE TIENDA (Productos, Órdenes, Upload) ---
+
+    // Helper para crear cliente con token de SessionManager
+    private fun createAuthenticatedClient(context: Context): OkHttpClient {
+        return baseOkHttpBuilder()
+            .addInterceptor(AuthInterceptor {
+                // ¡CORRECCIÓN! Aquí estaba el error. Ahora lee del lugar correcto.
+                SessionManager.getToken(context)
+            })
             .build()
-        // Reutilizamos la storeBaseUrl (API :vvN8lWFK)
+    }
+
+    fun createProductService(context: Context): ProductService {
+        val client = createAuthenticatedClient(context)
+        return retrofit(storeBaseUrl, client).create(ProductService::class.java)
+    }
+
+    fun createUploadService(context: Context): UploadService {
+        val client = createAuthenticatedClient(context)
+        return retrofit(storeBaseUrl, client).create(UploadService::class.java)
+    }
+
+    fun createOrderService(context: Context): OrderService {
+        val client = createAuthenticatedClient(context)
         return retrofit(storeBaseUrl, client).create(OrderService::class.java)
     }
 }
