@@ -31,7 +31,7 @@ class TokenManager(context: Context) { // Clase que encapsula el acceso a Shared
             putString(KEY_TOKEN, token)
             putString(KEY_USER_NAME, userName)
             putString(KEY_USER_EMAIL, userEmail)
-            apply()
+            commit()
         }
     }
 
@@ -46,7 +46,7 @@ class TokenManager(context: Context) { // Clase que encapsula el acceso a Shared
 
     fun clear() {
         currentToken = null // Limpiamos la variable en memoria
-        prefs.edit().clear().apply()
+        prefs.edit().clear().commit()
     }
 
     companion object {

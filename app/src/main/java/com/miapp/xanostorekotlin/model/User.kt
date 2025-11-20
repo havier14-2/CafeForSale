@@ -1,11 +1,12 @@
+// Archivo: com/miapp/xanostorekotlin/model/User.kt
 package com.miapp.xanostorekotlin.model
 
 import com.google.gson.annotations.SerializedName
+import java.io.Serializable // Importante para pasar entre activities/fragments
 
 /**
- * User
- * Modelo básico de usuario según lo esperado por la API de Xano.
- * Ajusta los campos si tu API devuelve otros nombres.
+ * Modelo de usuario actualizado para incluir ROL y STATUS.
+ * Basado en la captura de Xano (requisito 2.2).
  */
 data class User(
     @SerializedName("id")
@@ -17,7 +18,23 @@ data class User(
     @SerializedName("email")
     val email: String,
 
-    // El campo "created_at" también se puede incluir si lo necesitas
+    // --- ¡CAMPOS NUEVOS BASADOS EN REQUISITOS Y XANO! ---
+    @SerializedName("role")
+    val role: String, // "admin" o "client"
+
+    @SerializedName("status")
+    val status: String, // "active", "blocked"
+
+    @SerializedName("lastname")
+    val lastname: String?,
+
+    @SerializedName("shipping_address")
+    val shippingAddress: String?,
+
+    @SerializedName("phone")
+    val phone: String?,
+    // --- Fin de campos nuevos ---
+
     @SerializedName("created_at")
     val createdAt: Long
-)
+) : Serializable // Implementamos Serializable

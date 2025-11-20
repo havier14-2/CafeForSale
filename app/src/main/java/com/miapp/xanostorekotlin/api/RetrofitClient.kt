@@ -39,7 +39,19 @@ object RetrofitClient { // Objeto singleton que expone métodos de fábrica
             .client(client) // Asociamos cliente OkHttp
             .addConverterFactory(GsonConverterFactory.create()) // Añadimos convertidor Gson
             .build() // Construimos instancia Retrofit
+    fun createAuthService(context: Context): AuthService {
+        return retrofit(authBaseUrl, baseOkHttpBuilder().build())
+            .create(AuthService::class.java)
+    }
 
+    // 2. ¡NUEVA FÁBRICA PRIVADA (CON TOKEN)! - Para auth/me, user, etc.
+    fun createAuthenticatedAuthService(context: Context): AuthService {
+        val tokenManager = TokenManager(context)
+        val client = baseOkHttpBuilder()
+            .addInterceptor(AuthInterceptor { tokenManager.getToken() })
+            .build()
+        return retrofit(authBaseUrl, client).create(AuthService::class.java)
+    }
     /**
      * ¡FUNCIÓN MODIFICADA Y UNIFICADA!
      * Fábrica para AuthService. Ahora acepta un parámetro 'requiresAuth'.
@@ -79,5 +91,13 @@ object RetrofitClient { // Objeto singleton que expone métodos de fábrica
             .addInterceptor(AuthInterceptor { tokenManager.getToken() }) // Interceptor de Authorization
             .build() // Construimos cliente
         return retrofit(storeBaseUrl, client).create(UploadService::class.java) // Reutilizamos storeBaseUrl para subida de archivos
+    }
+    fun createOrderService(context: Context): OrderService {
+        val tokenManager = TokenManager(context)
+        val client = baseOkHttpBuilder()
+            .addInterceptor(AuthInterceptor { tokenManager.getToken() })
+            .build()
+        // Reutilizamos la storeBaseUrl (API :vvN8lWFK)
+        return retrofit(storeBaseUrl, client).create(OrderService::class.java)
     }
 }

@@ -1,5 +1,6 @@
+// Archivo: com/miapp/xanostorekotlin/ui/fragments/ProfileFragment.kt
 package com.miapp.xanostorekotlin.ui.fragments
-
+import android.util.Log
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -9,10 +10,12 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.miapp.xanostorekotlin.api.RetrofitClient
-import com.miapp.xanostorekotlin.api.TokenManager
+// ¡CAMBIO! Importamos el nuevo SessionManager
+import com.miapp.xanostorekotlin.helpers.SessionManager
 import com.miapp.xanostorekotlin.databinding.FragmentProfileBinding
 import com.miapp.xanostorekotlin.model.User
-import com.miapp.xanostorekotlin.ui.MainActivity
+// ¡CAMBIO! Importamos SplashActivity para el logout
+import com.miapp.xanostorekotlin.ui.SplashActivity
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.text.SimpleDateFormat
@@ -23,11 +26,11 @@ class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
-    private lateinit var tokenManager: TokenManager
+    // NOTA: Ya no necesitamos 'tokenManager' aquí
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentProfileBinding.inflate(inflater, container, false)
-        tokenManager = TokenManager(requireContext())
+        // Ya no inicializamos tokenManager
         return binding.root
     }
 
@@ -45,23 +48,33 @@ class ProfileFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val authService = RetrofitClient.createAuthService(requireContext(), requiresAuth = true)
-                val user = authService.getMe()
+                val token = SessionManager.getToken(requireContext())
+                if (token == null) {
+                    Toast.makeText(context, "Sesión no encontrada.", Toast.LENGTH_SHORT).show()
+                    logout()
+                    return@launch
+                }
+
+                // 2. Creamos el servicio (esto está bien)
+                val authService = RetrofitClient.createAuthService(requireContext())
+                // 3. ¡CAMBIADO! Pasamos el token a la función getMe()
+                val user = authService.getMe("Bearer $token")
                 updateUI(user)
             } catch (e: Exception) {
-                // --- ¡LÓGICA MEJORADA AQUÍ! ---
+                if (!isAdded) return@launch // Seguridad: si el fragmento se destruye
+
                 if (e is HttpException && e.code() == 401) {
-                    // Si el error es 401, el token es inválido. Cerramos sesión.
                     Toast.makeText(context, "Tu sesión ha expirado. Por favor, inicia sesión de nuevo.", Toast.LENGTH_LONG).show()
-                    logout()
+                    logout() // El token es inválido, llamamos a nuestro nuevo logout
                 } else {
-                    // Para otros errores (sin internet, etc.), mostramos datos locales.
+                    // Para otros errores, mostramos datos locales (solo el nombre)
                     Toast.makeText(context, "Error de red. Mostrando datos locales.", Toast.LENGTH_SHORT).show()
-                    binding.tvName.text = tokenManager.getUserName() ?: "No disponible"
-                    binding.tvEmail.text = tokenManager.getUserEmail() ?: "No disponible"
+                    // ¡CAMBIO! Usamos SessionManager
+                    binding.tvName.text = SessionManager.getUserName(requireContext()) ?: "No disponible"
+                    binding.tvEmail.text = "Email no disponible offline"
                 }
             } finally {
-                if (isAdded) { // Asegurarnos que el fragmento aún está "vivo"
+                if (isAdded) {
                     binding.progressBar.visibility = View.GONE
                 }
             }
@@ -71,9 +84,17 @@ class ProfileFragment : Fragment() {
     private fun updateUI(user: User) {
         binding.tvName.text = user.name
         binding.tvEmail.text = user.email
+
+        // Asignamos también el rol y estado (¡nuevo!)
+        val roleText = "Rol: ${user.role.replaceFirstChar { it.uppercase() }}"
+        val statusText = "Estado: ${user.status.replaceFirstChar { it.uppercase() }}"
+
+        // Podríamos usar otros TextViews si los añades al layout
+        // Por ahora, lo concatenamos a la fecha de miembro
+
         val sdf = SimpleDateFormat("dd 'de' MMMM 'de' yyyy", Locale("es", "ES"))
         val memberSinceDate = Date(user.createdAt)
-        binding.tvMemberSince.text = "Miembro desde: ${sdf.format(memberSinceDate)}"
+        binding.tvMemberSince.text = "Miembro desde: ${sdf.format(memberSinceDate)}\n$roleText ($statusText)"
     }
 
     private fun setupLogoutButton() {
@@ -82,12 +103,18 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    // --- ¡¡ESTA ES LA CORRECCIÓN MÁS IMPORTANTE!! ---
     private fun logout() {
-        tokenManager.clear()
-        val intent = Intent(requireContext(), MainActivity::class.java)
+        if (!isAdded) return // Seguridad
+
+        // ¡CAMBIO! Usamos SessionManager para limpiar
+        SessionManager.clearSession(requireContext())
+
+        // ¡CAMBIO! Redirigimos a SplashActivity, no a Login/Main
+        val intent = Intent(requireContext(), SplashActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
-        activity?.finish()
+        activity?.finishAffinity() // Cierra esta activity y todas las anteriores
     }
 
     override fun onDestroyView() {

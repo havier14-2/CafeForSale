@@ -11,22 +11,32 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.XanoStoreKotlin">
         <activity
-            android:name=".ui.EditProductActivity"
+            android:name=".ui.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Material3.DayNight.NoActionBar"> <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.LoginActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".ui.AdminHomeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.ClientHomeActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ui.ProductDetailActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.Material3.DayNight.NoActionBar" />
         <activity
-            android:name=".ui.MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".ui.HomeActivity"
+            android:name=".ui.EditProductActivity"
             android:exported="false" />
     </application>
 
