@@ -13,6 +13,8 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.DELETE // Importante
 import retrofit2.Response // Importante para el Delete
+import com.miapp.xanostorekotlin.model.Order
+
 interface AuthService {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
@@ -38,4 +40,8 @@ interface AuthService {
     // NUEVO: Borrar usuario
     @DELETE("user/{user_id}")
     suspend fun deleteUser(@Path("user_id") userId: Int): Response<Unit>
+
+
+
+
 }

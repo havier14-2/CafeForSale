@@ -36,4 +36,7 @@ interface OrderService {
     @POST("POST/user/{user_id}/toggle_status1")
     suspend fun toggleUserStatus(@Path("user_id") userId: Int): User
 
+    // En AuthService.kt
+    @GET("order/me") // El endpoint que acabamos de crear
+    suspend fun getMyOrders(): List<Order>
 }

@@ -1,8 +1,11 @@
 package com.miapp.xanostorekotlin.ui.fragments
-
-import android.content.Intent
+import coil.load
+import coil.transform.CircleCropTransformation
+import android.widget.ImageView // Asegura que ImageView esté importado
 import android.net.Uri
 import android.os.Bundle
+import kotlinx.coroutines.CancellationException
+import android.content.Intent
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -14,8 +17,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import coil.load
-import coil.transform.CircleCropTransformation
 import com.miapp.xanostorekotlin.R
 import com.miapp.xanostorekotlin.api.RetrofitClient
 import com.miapp.xanostorekotlin.databinding.FragmentProfileBinding
@@ -23,6 +26,7 @@ import com.miapp.xanostorekotlin.helpers.SessionManager
 import com.miapp.xanostorekotlin.model.User
 import com.miapp.xanostorekotlin.model.UserUpdateRequest
 import com.miapp.xanostorekotlin.ui.SplashActivity
+import com.miapp.xanostorekotlin.ui.adapter.ClientOrderAdapter
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -35,9 +39,11 @@ class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
-    private var currentUser: User? = null
 
-    // Selector de imagen
+    private var currentUser: User? = null
+    private lateinit var ordersAdapter: ClientOrderAdapter
+
+    // Selector de imagen de la galería
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { uploadAndSetAvatar(it) }
     }
@@ -50,18 +56,38 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Botones de Foto
-        binding.fabCamera.setOnClickListener { pickImage.launch("image/*") }
-        binding.ivAvatar.setOnClickListener { pickImage.launch("image/*") }
+        // 1. Configurar Clics de Foto (Desde el nuevo botón y la imagen misma)
+        binding.btnChangePhoto.setOnClickListener {
+            pickImage.launch("image/*")
+        }
+        binding.ivAvatar.setOnClickListener {
+            pickImage.launch("image/*")
+        }
 
-        // Botón Editar Datos
+        // 2. Configurar Botón Editar Datos
         binding.btnEditProfile.setOnClickListener {
             currentUser?.let { user -> showEditDialog(user) }
         }
 
+        // 3. Configurar Logout
         binding.btnLogout.setOnClickListener { logout() }
 
+        // 4. Configurar Lista de Compras
+        setupOrdersList()
+
+        // 5. Cargar datos
         loadUserProfile()
+        loadMyOrders()
+    }
+
+    private fun setupOrdersList() {
+        ordersAdapter = ClientOrderAdapter()
+        binding.rvMyOrders.apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = ordersAdapter
+            // Importante: Desactiva el scroll propio del RecyclerView para que funcione dentro del ScrollView
+            isNestedScrollingEnabled = false
+        }
     }
 
     private fun loadUserProfile() {
@@ -72,10 +98,36 @@ class ProfileFragment : Fragment() {
                 val service = RetrofitClient.createAuthService(requireContext())
                 currentUser = service.getMe("Bearer $token")
                 currentUser?.let { updateUI(it) }
+            } catch (e: CancellationException) {
+                throw e // Ignorar cancelación
             } catch (e: Exception) {
                 if (isAdded) Toast.makeText(context, "Error cargando perfil", Toast.LENGTH_SHORT).show()
             } finally {
-                if (isAdded) binding.progressBar.visibility = View.GONE
+                // Verifica si el fragmento sigue vivo antes de tocar la vista
+                if (isAdded && view != null) {
+                    binding.progressBar.visibility = View.GONE
+                }
+            }
+        }
+    }
+
+    private fun loadMyOrders() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val service = RetrofitClient.createOrderService(requireContext())
+                val orders = service.getMyOrders()
+
+                if (orders.isNotEmpty()) {
+                    ordersAdapter.updateData(orders)
+                }
+            } catch (e: CancellationException) {
+                // 1. Si el trabajo se cancela (ej: sales de la app), NO hacemos nada.
+                // Esto evita el mensaje "Job was cancelled".
+                throw e
+            } catch (e: Exception) {
+                // 2. Solo mostramos errores reales (de red, de servidor, etc)
+                Log.e("ProfileFragment", "Error cargando órdenes: ${e.message}")
+                if (isAdded) Toast.makeText(context, "Error al cargar compras", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -93,8 +145,9 @@ class ProfileFragment : Fragment() {
             binding.tvMemberSince.text = "Miembro activo"
         }
 
-        // --- CORRECCIÓN: Usamos 'profileImage' y quitamos el cast a ShapeableImageView ---
+        // Cargar imagen (profileImage)
         if (user.profileImage != null && !user.profileImage.url.isNullOrBlank()) {
+            // Intento 1: Usando load básico (Coil)
             binding.ivAvatar.load(user.profileImage.url) {
                 crossfade(true)
                 transformations(CircleCropTransformation())
@@ -108,7 +161,7 @@ class ProfileFragment : Fragment() {
 
     private fun uploadAndSetAvatar(uri: Uri) {
         binding.progressBar.visibility = View.VISIBLE
-        Toast.makeText(context, "Subiendo...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Subiendo imagen...", Toast.LENGTH_SHORT).show()
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
@@ -126,8 +179,7 @@ class ProfileFragment : Fragment() {
 
                 if (newImage != null && currentUser != null) {
                     val authService = RetrofitClient.createAuthenticatedAuthService(context)
-
-                    // Actualizamos SOLO la imagen (lo demás null)
+                    // Actualizamos SOLO la imagen, el resto null. El rol NO se envía (Xano lo mantiene).
                     val updateReq = UserUpdateRequest(null, null, null, null, null, newImage)
 
                     authService.updateUser(currentUser!!.id, updateReq)
@@ -135,7 +187,8 @@ class ProfileFragment : Fragment() {
                     loadUserProfile()
                 }
             } catch (e: Exception) {
-                if(isAdded) Toast.makeText(requireContext(), "Error al subir", Toast.LENGTH_SHORT).show()
+                Log.e("Profile", "Error subiendo imagen", e)
+                if(isAdded) Toast.makeText(requireContext(), "Error al subir imagen", Toast.LENGTH_SHORT).show()
             } finally {
                 if(isAdded) binding.progressBar.visibility = View.GONE
             }
@@ -150,7 +203,7 @@ class ProfileFragment : Fragment() {
         }
         val etName = EditText(context).apply { hint = "Nombre"; setText(user.name) }
         val etLast = EditText(context).apply { hint = "Apellido"; setText(user.lastname) }
-        val etAddr = EditText(context).apply { hint = "Dirección"; setText(user.shippingAddress) }
+        val etAddr = EditText(context).apply { hint = "Dirección envío"; setText(user.shippingAddress) }
         val etPhone = EditText(context).apply { hint = "Teléfono"; setText(user.phone) }
 
         layout.addView(etName)
@@ -159,7 +212,7 @@ class ProfileFragment : Fragment() {
         layout.addView(etPhone)
 
         AlertDialog.Builder(context)
-            .setTitle("Editar Datos")
+            .setTitle("Editar Mis Datos")
             .setView(layout)
             .setPositiveButton("Guardar") { _, _ ->
                 saveProfileChanges(
@@ -178,13 +231,14 @@ class ProfileFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val authService = RetrofitClient.createAuthenticatedAuthService(requireContext())
-                // Mantenemos la imagen actual
+                // Enviamos datos de texto. Rol es null. Imagen la mantenemos.
                 val req = UserUpdateRequest(name, last, phone, addr, null, currentUser?.profileImage)
+
                 authService.updateUser(id, req)
-                Toast.makeText(context, "Datos guardados", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Datos actualizados", Toast.LENGTH_SHORT).show()
                 loadUserProfile()
             } catch (e: Exception) {
-                if(isAdded) Toast.makeText(context, "Error al guardar", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
